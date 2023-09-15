@@ -77,7 +77,7 @@ opositeMovement = opposite
   Also, in the import list you have all relevant functions.
 -}
 makeRandomPoint :: BoardInfo -> StdGen -> (Point, StdGen)
-makeRandomPoint boardInfo = randomR ((1, 1), (height boardInfo, width boardInfo))
+makeRandomPoint boardInfo = randomR ((1, 1), (boardInfo.height, boardInfo.width))
 
 {-
 We can't test makeRandomPoint, because different implementation may lead to different valid result.
@@ -171,6 +171,8 @@ Another example, if we move between this two steps
        - 0 $ X          - 0 0 $
 We need to send the following delta: [((2,2), Apple), ((4,3), Snake), ((4,4), SnakeHead)]
 -}
+
+-- NOTE: Pop end of snake.snakeBody and prepend (at snake.snakeHead, i.e., where "old head" was)
 move :: BoardInfo -> GameState -> (Board.RenderMessage, GameState)
 move = undefined
 
