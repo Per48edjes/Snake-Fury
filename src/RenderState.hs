@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {- |
@@ -20,7 +21,7 @@ Which would look like this:
 module RenderState where
 
 -- This are all imports you need. Feel free to import more things.
-import Data.Array (Array, elems, listArray, (//))
+import Data.Array (Array, array, elems, listArray, range, (//))
 import Data.Foldable (foldl')
 
 -- A point is just a tuple of integers.
@@ -52,13 +53,17 @@ data RenderState = RenderState {board :: Board, gameOver :: Bool} deriving (Show
 
 -- | Given The board info, this function should return a board with all Empty cells
 emptyGrid :: BoardInfo -> Board
-emptyGrid = undefined
+emptyGrid boardInfo = array (lowerBound, upperBound) [(point, Empty) | point <- range (lowerBound, upperBound)]
+  where
+    lowerBound = (1, 1)
+    upperBound = (boardInfo.height, boardInfo.width)
 
 {-
 This is a test for emptyGrid. It should return
 array ((1,1),(2,2)) [((1,1),Empty),((1,2),Empty),((2,1),Empty),((2,2),Empty)]
 -}
 -- >>> emptyGrid (BoardInfo 2 2)
+-- array ((1,1),(2,2)) [((1,1),Empty),((1,2),Empty),((2,1),Empty),((2,2),Empty)]
 
 -- | Given BoardInfo, initial point of snake and initial point of apple, builds a board
 buildInitialBoard ::

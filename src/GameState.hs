@@ -11,10 +11,10 @@ module GameState where
 import Data.Bifunctor (bimap, first, second)
 import Data.Foldable (Foldable (..))
 import Data.Maybe (isJust)
-import Data.Sequence (Seq (..))
+import Data.Sequence (Seq (..), (<|))
 import qualified Data.Sequence as S
 import qualified Data.Set as Set (difference, fromList, member, null, toList)
-import RenderState (BoardInfo (..), DeltaBoard, Point)
+import RenderState (BoardInfo (..), CellType (..), DeltaBoard, Point)
 import qualified RenderState as Board
 import System.Random (Random (randomR), RandomGen (split), StdGen, uniformR)
 
@@ -171,10 +171,15 @@ Another example, if we move between this two steps
        - 0 $ X          - 0 0 $
 We need to send the following delta: [((2,2), Apple), ((4,3), Snake), ((4,4), SnakeHead)]
 -}
-
--- NOTE: Pop end of snake.snakeBody and prepend (at snake.snakeHead, i.e., where "old head" was)
 move :: BoardInfo -> GameState -> (Board.RenderMessage, GameState)
-move = undefined
+move boardInfo gameState@(GameState snake oldApplePosition oldMovement _)
+    | inSnake newHead snake = (Board.GameOver, gameState)
+    | otherwise = (Board.RenderBoard deltaBoard, GameState newSnake newApplePosition oldMovement gen')
+  where
+    newHead = nextHead boardInfo gameState
+    (newApplePosition, gen') = newApple boardInfo gameState
+    newSnake = SnakeSeq newHead $ snake.snakeHead <| if newHead /= oldApplePosition then S.deleteAt (length snake.snakeBody - 1) snake.snakeBody else snake.snakeBody
+    deltaBoard = [(newHead, SnakeHead), (snake.snakeHead, Snake)] ++ if newHead /= oldApplePosition then [(snake.snakeBody `S.index` (length snake.snakeBody - 1), Board.Empty)] else [(newApplePosition, Apple)]
 
 {- This is a test for move. It should return
 
@@ -193,3 +198,6 @@ RenderBoard [((4,1),SnakeHead),((1,1),Snake),((1,3),Empty)]
 -- >>> fst $ move board_info game_state1
 -- >>> fst $ move board_info game_state2
 -- >>> fst $ move board_info game_state3
+-- RenderBoard [((1,4),SnakeHead),((1,1),Snake),((1,3),Empty)]
+-- RenderBoard [((2,1),SnakeHead),((1,1),Snake),((3,2),Apple)]
+-- RenderBoard [((4,1),SnakeHead),((1,1),Snake),((1,3),Empty)]
