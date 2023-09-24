@@ -140,18 +140,12 @@ True
 
 -- | Calculates a new random apple, avoiding creating the apple in the same place, or in the snake body
 newApple :: BoardInfo -> GameState -> (Point, StdGen)
--- NOTE: Exercise prompt seems to nudge use toward using makeRandomPoint & inSnake, but I don't know how reasonable
---       that is since it seems inefficient to keep generating random points until we find one that works.
-newApple boardInfo (GameState snake oldApplePosition _ gen)
-    -- HACK: Haven't looked into the condition where there are no more valid points left
-    | Set.null validPoints = error "No more points available"
-    | otherwise =
-        let (i, gen') = randomR (0, length validPoints - 1) gen
-         in (Set.toList validPoints !! i, gen')
+newApple boardInfo (GameState snake oldApplePosition currentMovement gen) =
+    if newApplePosition `inSnake` snake || newApplePosition == oldApplePosition
+        then newApple boardInfo (GameState snake oldApplePosition currentMovement gen')
+        else (newApplePosition, gen')
   where
-    invalidPoints = Set.fromList $ oldApplePosition : snake.snakeHead : toList snake.snakeBody
-    allPoints = Set.fromList [(r, c) | r <- [1 .. boardInfo.height], c <- [1 .. boardInfo.width]]
-    validPoints = Set.difference allPoints invalidPoints
+    (newApplePosition, gen') = makeRandomPoint boardInfo gen
 
 {- We can't test this function because it depends on makeRandomPoint -}
 
@@ -172,14 +166,22 @@ Another example, if we move between this two steps
 We need to send the following delta: [((2,2), Apple), ((4,3), Snake), ((4,4), SnakeHead)]
 -}
 move :: BoardInfo -> GameState -> (Board.RenderMessage, GameState)
-move boardInfo gameState@(GameState snake oldApplePosition oldMovement _)
+move boardInfo gameState@(GameState snake oldApplePosition oldMovement gen)
     | inSnake newHead snake = (Board.GameOver, gameState)
-    | otherwise = (Board.RenderBoard deltaBoard, GameState newSnake newApplePosition oldMovement gen')
+    | otherwise = (Board.RenderBoard deltaBoard, GameState newSnake (if eatingApple then newApplePosition else oldApplePosition) oldMovement (if eatingApple then gen' else gen))
   where
     newHead = nextHead boardInfo gameState
     (newApplePosition, gen') = newApple boardInfo gameState
-    newSnake = SnakeSeq newHead $ snake.snakeHead <| if newHead /= oldApplePosition then S.deleteAt (length snake.snakeBody - 1) snake.snakeBody else snake.snakeBody
-    deltaBoard = [(newHead, SnakeHead), (snake.snakeHead, Snake)] ++ if newHead /= oldApplePosition then [(snake.snakeBody `S.index` (length snake.snakeBody - 1), Board.Empty)] else [(newApplePosition, Apple)]
+    newSnake = SnakeSeq newHead newBody
+    eatingApple = newHead == oldApplePosition
+    newBody
+        | S.null snake.snakeBody = if eatingApple then S.singleton snake.snakeHead else S.empty
+        | S.length snake.snakeBody == 1 = if eatingApple then snake.snakeHead <| snake.snakeBody else S.singleton snake.snakeHead
+        | otherwise = snake.snakeHead <| if eatingApple then snake.snakeBody else S.deleteAt (length snake.snakeBody - 1) snake.snakeBody
+    deltaBoard
+        | S.null snake.snakeBody = (newHead, SnakeHead) : if eatingApple then [(snake.snakeHead, Snake), (newApplePosition, Apple)] else [(snake.snakeHead, Board.Empty)]
+        | S.length snake.snakeBody == 1 = [(newHead, SnakeHead), (snake.snakeHead, Snake)] ++ if eatingApple then [(newApplePosition, Apple)] else [(snake.snakeBody `S.index` 0, Board.Empty)]
+        | otherwise = [(newHead, SnakeHead), (snake.snakeHead, Snake)] ++ if eatingApple then [(newApplePosition, Apple)] else [(snake.snakeBody `S.index` (S.length snake.snakeBody - 1), Board.Empty)]
 
 {- This is a test for move. It should return
 

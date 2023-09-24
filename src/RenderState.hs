@@ -1,6 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 {- |
 This module defines the board. A board is an array of CellType elements indexed by a tuple of ints: the height and width.
@@ -22,7 +20,7 @@ module RenderState where
 
 -- This are all imports you need. Feel free to import more things.
 import Data.Array (Array, array, elems, listArray, range, (//))
-import Data.Foldable (foldl')
+import Data.Foldable (foldMap', foldl')
 
 -- A point is just a tuple of integers.
 type Point = (Int, Int)
@@ -53,7 +51,7 @@ data RenderState = RenderState {board :: Board, gameOver :: Bool} deriving (Show
 
 -- | Given The board info, this function should return a board with all Empty cells
 emptyGrid :: BoardInfo -> Board
-emptyGrid boardInfo = array (lowerBound, upperBound) [(point, Empty) | point <- range (lowerBound, upperBound)]
+emptyGrid boardInfo = listArray (lowerBound, upperBound) $ replicate (boardInfo.height * boardInfo.width) Empty
   where
     lowerBound = (1, 1)
     upperBound = (boardInfo.height, boardInfo.width)
@@ -74,17 +72,21 @@ buildInitialBoard ::
     -- | initial Point of the apple
     Point ->
     RenderState
-buildInitialBoard = undefined
+buildInitialBoard boardInfo snake apple =
+    let initialBoard = emptyGrid boardInfo // [(snake, SnakeHead), (apple, Apple)]
+     in RenderState initialBoard False
 
 {-
 This is a test for buildInitialBoard. It should return
 RenderState {board = array ((1,1),(2,2)) [((1,1),SnakeHead),((1,2),Empty),((2,1),Empty),((2,2),Apple)], gameOver = False}
 -}
 -- >>> buildInitialBoard (BoardInfo 2 2) (1,1) (2,2)
+-- RenderState {board = array ((1,1),(2,2)) [((1,1),SnakeHead),((1,2),Empty),((2,1),Empty),((2,2),Apple)], gameOver = False}
 
 -- | Given tye current render state, and a message -> update the render state
 updateRenderState :: RenderState -> RenderMessage -> RenderState
-updateRenderState = undefined
+updateRenderState renderState GameOver = RenderState renderState.board True
+updateRenderState renderState (RenderBoard delta) = RenderState (renderState.board // delta) False
 
 {-
 This is a test for updateRenderState
@@ -111,13 +113,22 @@ RenderState {board = array ((1,1),(2,2)) [((1,1),SnakeHead),((1,2),Empty),((2,1)
   In other to avoid shrinking, I'd recommend to use some charachter followed by an space.
 -}
 ppCell :: CellType -> String
-ppCell = undefined
+ppCell cellType = case cellType of
+    Empty -> "- "
+    Snake -> "0 "
+    SnakeHead -> "$ "
+    Apple -> "X "
 
 {- | convert the RenderState in a String ready to be flushed into the console.
   It should return the Board with a pretty look. If game over, return the empty board.
 -}
+insertEvery :: Int -> a -> [a] -> [a]
+insertEvery _ _ [] = []
+insertEvery n x xs = take n xs ++ [x] ++ insertEvery n x (drop n xs)
+
 render :: BoardInfo -> RenderState -> String
-render = undefined
+render boardInfo (RenderState _ True) = insertEvery 20 '\n' $ foldMap' ppCell $ emptyGrid boardInfo
+render boardInfo (RenderState currentBoard False) = insertEvery 20 '\n' $ foldMap' ppCell currentBoard
 
 {-
 This is a test for render. It should return:
