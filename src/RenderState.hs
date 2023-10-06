@@ -19,7 +19,10 @@ Which would look like this:
 module RenderState where
 
 -- This are all imports you need. Feel free to import more things.
+
 import Data.Array (Array, array, elems, listArray, range, (//))
+import Data.ByteString.Builder (Builder, charUtf8, intDec)
+import qualified Data.ByteString.Lazy.Char8 as L
 import Data.Foldable (foldMap', foldl')
 
 -- A point is just a tuple of integers.
@@ -44,10 +47,10 @@ type DeltaBoard = [(Point, CellType)]
   Right now Possible messages are a RenderBoard with a payload indicating which cells change
   or a GameOver message.
 -}
-data RenderMessage = RenderBoard DeltaBoard | GameOver deriving (Show)
+data RenderMessage = RenderBoard DeltaBoard | GameOver | RenderScore Int deriving (Show)
 
 -- | The RenderState contains the board and if the game is over or not.
-data RenderState = RenderState {board :: Board, gameOver :: Bool} deriving (Show)
+data RenderState = RenderState {board :: Board, gameOver :: Bool, score :: Int} deriving (Show)
 
 -- | Given The board info, this function should return a board with all Empty cells
 emptyGrid :: BoardInfo -> Board
@@ -74,7 +77,7 @@ buildInitialBoard ::
     RenderState
 buildInitialBoard boardInfo snake apple =
     let initialBoard = emptyGrid boardInfo // [(snake, SnakeHead), (apple, Apple)]
-     in RenderState initialBoard False
+     in RenderState initialBoard False 0
 
 {-
 This is a test for buildInitialBoard. It should return
@@ -84,9 +87,12 @@ RenderState {board = array ((1,1),(2,2)) [((1,1),SnakeHead),((1,2),Empty),((2,1)
 -- RenderState {board = array ((1,1),(2,2)) [((1,1),SnakeHead),((1,2),Empty),((2,1),Empty),((2,2),Apple)], gameOver = False}
 
 -- | Given tye current render state, and a message -> update the render state
-updateRenderState :: RenderState -> RenderMessage -> RenderState
-updateRenderState renderState GameOver = RenderState renderState.board True
-updateRenderState renderState (RenderBoard delta) = RenderState (renderState.board // delta) False
+updateRenderState :: RenderState -> [RenderMessage] -> RenderState
+updateRenderState = foldl' incorporateRenderMessage
+  where
+    incorporateRenderMessage renderState GameOver = renderState{gameOver = True}
+    incorporateRenderMessage renderState (RenderScore scoreIncr) = renderState{score = renderState.score + scoreIncr}
+    incorporateRenderMessage renderState (RenderBoard delta) = renderState{board = renderState.board // delta, gameOver = False, score = renderState.score}
 
 {-
 This is a test for updateRenderState
@@ -119,6 +125,21 @@ ppCell cellType = case cellType of
     SnakeHead -> "$ "
     Apple -> "X "
 
+ppScore :: Int -> Builder
+ppScore s =
+    mconcat
+        [ renderString "********\n"
+        , renderString "score:" <> intDec s <> charUtf8 '\n'
+        , renderString "********\n\n"
+        ]
+
+renderString :: String -> Builder
+renderString cs = charUtf8 '"' <> foldMap escape cs <> charUtf8 '"'
+  where
+    escape '\\' = charUtf8 '\\' <> charUtf8 '\\'
+    escape '\"' = charUtf8 '\\' <> charUtf8 '\"'
+    escape c = charUtf8 c
+
 {- | convert the RenderState in a String ready to be flushed into the console.
   It should return the Board with a pretty look. If game over, return the empty board.
 -}
@@ -126,9 +147,10 @@ insertEvery :: Int -> a -> [a] -> [a]
 insertEvery _ _ [] = []
 insertEvery n x xs = take n xs ++ [x] ++ insertEvery n x (drop n xs)
 
-render :: BoardInfo -> RenderState -> String
-render boardInfo (RenderState _ True) = insertEvery 20 '\n' $ foldMap' ppCell $ emptyGrid boardInfo
-render boardInfo (RenderState currentBoard False) = insertEvery 20 '\n' $ foldMap' ppCell currentBoard
+-- TODO: Refactor this function to produce a Builder and make less brittle board rendering
+render :: BoardInfo -> RenderState -> Builder
+render boardInfo (RenderState _ True score) = insertEvery 20 '\n' $ foldMap' ppCell $ emptyGrid boardInfo
+render boardInfo (RenderState currentBoard False score) = insertEvery 20 '\n' $ foldMap' ppCell currentBoard
 
 {-
 This is a test for render. It should return:

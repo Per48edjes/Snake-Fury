@@ -165,10 +165,10 @@ Another example, if we move between this two steps
        - 0 $ X          - 0 0 $
 We need to send the following delta: [((2,2), Apple), ((4,3), Snake), ((4,4), SnakeHead)]
 -}
-move :: BoardInfo -> GameState -> (Board.RenderMessage, GameState)
+move :: BoardInfo -> GameState -> ([Board.RenderMessage], GameState)
 move boardInfo gameState@(GameState snake oldApplePosition oldMovement gen)
-    | inSnake newHead snake = (Board.GameOver, gameState)
-    | otherwise = (Board.RenderBoard deltaBoard, GameState newSnake (if eatingApple then newApplePosition else oldApplePosition) oldMovement (if eatingApple then gen' else gen))
+    | inSnake newHead snake = ([Board.GameOver], gameState)
+    | otherwise = (Board.RenderBoard deltaBoard : ([Board.RenderScore 1 | eatingApple]), GameState newSnake (if eatingApple then newApplePosition else oldApplePosition) oldMovement (if eatingApple then gen' else gen))
   where
     newHead = nextHead boardInfo gameState
     (newApplePosition, gen') = newApple boardInfo gameState
