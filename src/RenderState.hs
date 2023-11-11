@@ -134,7 +134,7 @@ ppScore s =
         ]
 
 renderString :: String -> Builder
-renderString cs = charUtf8 '"' <> foldMap escape cs <> charUtf8 '"'
+renderString = foldMap escape
   where
     escape '\\' = charUtf8 '\\' <> charUtf8 '\\'
     escape '\"' = charUtf8 '\\' <> charUtf8 '\"'
@@ -147,10 +147,9 @@ insertEvery :: Int -> a -> [a] -> [a]
 insertEvery _ _ [] = []
 insertEvery n x xs = take n xs ++ [x] ++ insertEvery n x (drop n xs)
 
--- TODO: Refactor this function to produce a Builder and make less brittle board rendering
 render :: BoardInfo -> RenderState -> Builder
-render boardInfo (RenderState _ True score) = insertEvery 20 '\n' $ foldMap' ppCell $ emptyGrid boardInfo
-render boardInfo (RenderState currentBoard False score) = insertEvery 20 '\n' $ foldMap' ppCell currentBoard
+render boardInfo (RenderState _ True s) = ppScore s <> renderString (insertEvery (boardInfo.width * 2) '\n' $ foldMap' ppCell $ emptyGrid boardInfo)
+render boardInfo (RenderState currentBoard False s) = ppScore s <> renderString (insertEvery (boardInfo.width * 2) '\n' $ foldMap' ppCell currentBoard)
 
 {-
 This is a test for render. It should return:

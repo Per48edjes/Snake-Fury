@@ -8,10 +8,11 @@ import Control.Concurrent (
     threadDelay,
  )
 import Control.Monad (unless)
-import EventQueue (Event (Tick, UserEvent), EventQueue (initialSpeed), readEvent, setSpeed, writeUserInput)
+import Data.ByteString.Builder (hPutBuilder)
+import EventQueue (Event (Tick, UserEvent), EventQueue, readEvent, setSpeed, writeUserInput)
 import GameState (GameState (movement), move, opositeMovement)
 import Initialization (gameInitialization)
-import RenderState (BoardInfo, RenderState (gameOver), render, score, updateRenderState)
+import RenderState (BoardInfo, RenderState (gameOver, score), render, updateRenderState)
 import System.Environment (getArgs)
 import System.IO (BufferMode (NoBuffering), hSetBinaryMode, hSetBuffering, hSetEcho, stdin, stdout)
 
@@ -36,7 +37,7 @@ gameloop binf gstate rstate queue = do
     let rstate' = updateRenderState rstate delta
         isGameOver = gameOver rstate'
     putStr "\ESC[2J" -- This cleans the console screen
-    putStr $ render binf rstate'
+    hPutBuilder stdout $ render binf rstate'
     unless isGameOver $ gameloop binf gstate' rstate' queue
 
 -- | main.
